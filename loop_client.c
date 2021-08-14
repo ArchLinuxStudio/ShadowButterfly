@@ -86,12 +86,11 @@ int main() {
     //   sprintf(str, "%02x", tag[i]);
     //   printf("%s", str);
     // }
-    dump_buf("\n  . generate 64 byte random data:TAG ... ok", tag, 16);
-    dump_buf("\n  . generate 64 byte random data:CIPHER ... ok", cipher,
-             strlen((char *)cipher));
+    dump_buf("\n  . get 16 byte :TAG ... ok", tag, 16);
+    dump_buf("\n  . get data:CIPHER ... ok", cipher, strlen((char *)cipher));
 
     // append IV and ADD
-    memset(buf_send, 0, sizeof(buf_send));
+    memset(buf_send, 0, BUFSIZ);
     strcat(buf_send, (char *)IV);
     strcat(buf_send, (char *)ADD);
     // append TAG
@@ -145,7 +144,13 @@ unsigned char *ctr_drbg_random(int length) {
 
   mbedtls_printf("\n  . setup rng ... ok\n");
 
-  ret = mbedtls_ctr_drbg_random(&ctr_drbg, random, length);
+  do {
+    ret = mbedtls_ctr_drbg_random(&ctr_drbg, random, length);
+    printf("\n\nret:%d\n\n", ret);
+
+    printf("\n\nstrlen(random):%lu\n\n", strlen((char *)random));
+
+  } while (strlen((char *)random) < length);
 
   mbedtls_ctr_drbg_free(&ctr_drbg);
   mbedtls_entropy_free(&entropy);
@@ -192,7 +197,6 @@ int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
     printf("%s", str);
   }
 
-  printf("-----------outfunction-----------------");
   memcpy(tag, tag_buf, 16);
   memcpy(ret_cipher, cipher, len);
   *length = len;
