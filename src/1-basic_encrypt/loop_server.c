@@ -13,37 +13,14 @@
 #include <mbedtls/entropy.h>
 #include <mbedtls/platform.h>
 
+#include "tools.h"
+
 #define GET_REQUEST "GET / HTTP/1.0\r\n\r\n"
 #define REQUEST_SERVER_PORT 80
-
-#define KEY "qdEDMtTtJviT/o3V2fa2hKm0+00lT9/1"
-#define SERVER_ADDRESS "127.0.0.1"
-#define SERVER_PORT 6789
-
-#define IV_LENGTH 64
-#define ADD_LENGTH 64
-#define TAG_LENGTH 16
-#define CIPHER_LENGTH 4
-
-static void dump_buf(char *info, uint8_t *buf, uint32_t len) {
-  mbedtls_printf("%s", info);
-  for (int i = 0; i < len; i++) {
-    mbedtls_printf("%s%02X%s", i % 16 == 0 ? "\n     " : " ", buf[i],
-                   i == len - 1 ? "\n" : "");
-  }
-}
 
 int parse_client_request(unsigned char *buffer, unsigned char *IV,
                          unsigned char *ADD, unsigned char *cipher,
                          int *cipher_length, unsigned char *tag);
-
-int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
-                    unsigned char *iv, unsigned char *add, unsigned char *tag,
-                    unsigned char *result);
-
-int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
-                    unsigned char *add, unsigned char *tag,
-                    unsigned char *ret_cipher, int *length);
 
 int main() {
   // init socket
@@ -79,8 +56,21 @@ int main() {
   socklen_t clnt_addr_size = sizeof(clnt_addr);
   // buffer to accept client message
   unsigned char buffer[BUFSIZ] = {0};
+
+  mbedtls_cipher_context_t *ctx;
+  const mbedtls_cipher_info_t *info;
+
   // main loop
   while (1) {
+    ctx = malloc(sizeof(mbedtls_cipher_context_t));
+    memset(ctx, 0, sizeof(mbedtls_cipher_context_t));
+
+    mbedtls_cipher_init(ctx);
+    info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_256_GCM);
+    mbedtls_cipher_setup(ctx, info);
+    mbedtls_printf("cipher info setup, name: %s, block size: %d\n",
+                   mbedtls_cipher_get_name(ctx),
+                   mbedtls_cipher_get_block_size(ctx));
     // accept
     int clnt_sock =
         accept(serv_sock, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
@@ -111,7 +101,8 @@ int main() {
 
     // decrypt the ciphet to get address
     char *SERVER_NAME;
-    if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD, tag, result)) {
+    if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD, tag, result,
+                        *ctx)) {
       // auth failed
       // terminate connection immediately
       close(clnt_sock);
@@ -220,7 +211,7 @@ int main() {
       dump_buf("\n  . encrypt used ADD  :--------", ADD, ADD_LENGTH);
       printf("\nencrypt used KEY \n%s", KEY);
       encrypt_aes_gcm(KEY, server_use_buf, IV, ADD, encrypt_tag, encrypt_cipher,
-                      &length);
+                      &length, *ctx);
 
       printf("\n\nreturn cipher length: %d\n\n", length);
       memset(server_use_buf, 0, BUFSIZ);
@@ -253,6 +244,9 @@ int main() {
 
     close(request_server_fd);
     close(clnt_sock);
+    mbedtls_cipher_free(ctx);
+    free(ctx);
+    ctx = NULL;
     memset(buffer, 0, BUFSIZ);
   }
 
@@ -276,87 +270,5 @@ int parse_client_request(unsigned char *buffer, unsigned char *IV,
   memcpy(tag, buffer + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, TAG_LENGTH);
   memcpy(cipher, buffer + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH + TAG_LENGTH,
          len);
-  return 0;
-}
-
-int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
-                    unsigned char *iv, unsigned char *add, unsigned char *tag,
-                    unsigned char *result) {
-
-  unsigned char *decrypt_result = malloc(sizeof(char) * input_length);
-
-  size_t result_len = 0;
-
-  mbedtls_cipher_context_t ctx;
-  const mbedtls_cipher_info_t *info;
-
-  mbedtls_cipher_init(&ctx);
-  info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_256_GCM);
-  mbedtls_cipher_setup(&ctx, info);
-  mbedtls_printf("cipher info setup, name: %s, block size: %d\n",
-                 mbedtls_cipher_get_name(&ctx),
-                 mbedtls_cipher_get_block_size(&ctx));
-
-  mbedtls_cipher_setkey(&ctx, (const unsigned char *)key, strlen(key) * 8,
-                        MBEDTLS_DECRYPT);
-
-  int ret = mbedtls_cipher_auth_decrypt(
-      &ctx, (const unsigned char *)iv, IV_LENGTH, (const unsigned char *)add,
-      ADD_LENGTH, input, input_length, decrypt_result, &result_len, tag,
-      TAG_LENGTH);
-
-  memcpy(result, decrypt_result, result_len);
-
-  free(decrypt_result);
-  mbedtls_cipher_free(&ctx);
-  return ret;
-}
-
-int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
-                    unsigned char *add, unsigned char *tag,
-                    unsigned char *ret_cipher, int *length) {
-
-  unsigned char *tag_buf = malloc(sizeof(char) * TAG_LENGTH);
-  unsigned char *cipher = malloc(sizeof(char) * BUFSIZ);
-
-  size_t len;
-
-  mbedtls_cipher_context_t ctx;
-  const mbedtls_cipher_info_t *info;
-
-  mbedtls_cipher_init(&ctx);
-  info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_256_GCM);
-  mbedtls_cipher_setup(&ctx, info);
-  mbedtls_printf("cipher info setup, name: %s, block size: %d\n",
-                 mbedtls_cipher_get_name(&ctx),
-                 mbedtls_cipher_get_block_size(&ctx));
-
-  mbedtls_cipher_setkey(&ctx, (const unsigned char *)key, strlen(key) * 8,
-                        MBEDTLS_ENCRYPT);
-  mbedtls_cipher_auth_encrypt(&ctx, iv, strlen((char *)iv), add,
-                              strlen((char *)add), (const unsigned char *)input,
-                              strlen(input), cipher, &len, tag_buf, TAG_LENGTH);
-
-  printf("encrypt:");
-  for (int i = 0; i < len; i++) {
-    char str[3];
-    sprintf(str, "%02x", (int)cipher[i]);
-    printf("%s", str);
-  }
-  printf("\ntag:");
-  for (int i = 0; i < 16; i++) {
-    char str[3];
-    sprintf(str, "%02x", (int)tag_buf[i]);
-    printf("%s", str);
-  }
-
-  printf("\n\ncipher length %zu\n\n", len);
-
-  memcpy(tag, tag_buf, TAG_LENGTH);
-  memcpy(ret_cipher, cipher, len);
-
-  *length = len;
-  mbedtls_cipher_free(&ctx);
-
   return 0;
 }
