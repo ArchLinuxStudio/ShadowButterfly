@@ -33,4 +33,4 @@ gcc loop_server.c -lmbedcrypto -o b.out
 
 CIPHER, TAG, IV,ADD may contain `0x00`, so you should not use function like strcat or strlen, these function would "cut the string" prematurely when they met `0x00`, you should use functions like memcpy instead.
 
-And because of this, when you transfer data between server and client, the cipher may contain `0x00`, so you should also append the cipher length, in this way, the server or client will know who long the cipher is. IV\ADD\TAG's length is fixed, so don't need to pass their length.
+And because of this, when you transfer data between server and client, the cipher may contain `0x00`, so you should also append the cipher length, in this way, the server or client will know how long the cipher is. IV\ADD\TAG's length is fixed, so don't need to pass their length.
