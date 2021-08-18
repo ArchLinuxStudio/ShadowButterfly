@@ -78,7 +78,7 @@ int main() {
     int length = 0;
 
     // encrypt request website address
-    encrypt_aes_gcm(KEY, buf_send, IV, ADD, tag, cipher, &length, *ctx);
+    encrypt_aes_gcm(KEY, buf_send, IV, ADD, tag, cipher, &length, ctx);
 
     memset(buf_send, 0, BUFSIZ);
 
@@ -146,7 +146,7 @@ int main() {
       dump_buf("\n  . decrypt_cipher :--------", decrypt_cipher, cipher_length);
 
       if (decrypt_aes_gcm(KEY, decrypt_cipher, cipher_length, IV, ADD,
-                          decrypt_tag, decrypt_result, *ctx)) {
+                          decrypt_tag, decrypt_result, ctx)) {
         // auth failed
         // terminate connection immediately
         close(serv_sock);

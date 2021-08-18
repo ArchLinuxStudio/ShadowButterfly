@@ -1,11 +1,4 @@
-#include <arpa/inet.h>
-#include <errno.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
 #include <mbedtls/cipher.h>
 #include <mbedtls/ctr_drbg.h>
@@ -25,6 +18,7 @@
 int ctr_drbg_random(int length, unsigned char *random_num) {
   int ret = 0;
   unsigned char *random = malloc(sizeof(char) * length);
+  memset(random, 0, length);
 
   mbedtls_entropy_context entropy;
   mbedtls_ctr_drbg_context ctr_drbg;
@@ -54,16 +48,16 @@ int ctr_drbg_random(int length, unsigned char *random_num) {
 
 int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
                     unsigned char *iv, unsigned char *add, unsigned char *tag,
-                    unsigned char *result, mbedtls_cipher_context_t ctx) {
+                    unsigned char *result, mbedtls_cipher_context_t *ctx) {
 
   unsigned char *decrypt_result = malloc(sizeof(char) * input_length);
   memset(decrypt_result, 0, input_length);
   size_t result_len = 0;
 
-  mbedtls_cipher_setkey(&ctx, (const unsigned char *)key, strlen(key) * 8,
+  mbedtls_cipher_setkey(ctx, (const unsigned char *)key, strlen(key) * 8,
                         MBEDTLS_DECRYPT);
 
-  int ret = mbedtls_cipher_auth_decrypt(&ctx, iv, IV_LENGTH, add, ADD_LENGTH,
+  int ret = mbedtls_cipher_auth_decrypt(ctx, iv, IV_LENGTH, add, ADD_LENGTH,
                                         input, input_length, decrypt_result,
                                         &result_len, tag, TAG_LENGTH);
 
@@ -81,7 +75,7 @@ int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
 int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
                     unsigned char *add, unsigned char *tag,
                     unsigned char *ret_cipher, int *length,
-                    mbedtls_cipher_context_t ctx) {
+                    mbedtls_cipher_context_t *ctx) {
 
   // TAG
   unsigned char tag_buf[TAG_LENGTH] = {0};
@@ -89,9 +83,9 @@ int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
   unsigned char cipher[BUFSIZ] = {0};
   size_t len;
 
-  mbedtls_cipher_setkey(&ctx, (const unsigned char *)key, strlen(key) * 8,
+  mbedtls_cipher_setkey(ctx, (const unsigned char *)key, strlen(key) * 8,
                         MBEDTLS_ENCRYPT);
-  mbedtls_cipher_auth_encrypt(&ctx, iv, IV_LENGTH, add, ADD_LENGTH,
+  mbedtls_cipher_auth_encrypt(ctx, iv, IV_LENGTH, add, ADD_LENGTH,
                               (const unsigned char *)input, strlen(input),
                               cipher, &len, tag_buf, TAG_LENGTH);
 

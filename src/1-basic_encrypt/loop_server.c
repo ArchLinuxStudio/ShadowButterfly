@@ -102,7 +102,7 @@ int main() {
     // decrypt the ciphet to get address
     char *SERVER_NAME;
     if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD, tag, result,
-                        *ctx)) {
+                        ctx)) {
       // auth failed
       // terminate connection immediately
       close(clnt_sock);
@@ -211,7 +211,7 @@ int main() {
       dump_buf("\n  . encrypt used ADD  :--------", ADD, ADD_LENGTH);
       printf("\nencrypt used KEY \n%s", KEY);
       encrypt_aes_gcm(KEY, server_use_buf, IV, ADD, encrypt_tag, encrypt_cipher,
-                      &length, *ctx);
+                      &length, ctx);
 
       printf("\n\nreturn cipher length: %d\n\n", length);
       memset(server_use_buf, 0, BUFSIZ);
