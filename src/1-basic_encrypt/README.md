@@ -10,6 +10,8 @@ CIPHER_LENGTH(4 bytes string) + IV_LENGTH(64) + ADD_LENGTH(64) + TAG_LENGTH(16) 
 
 CIPHER_LENGTH(4 bytes string) + TAG_LENGTH(16) + CIPHER(IT DEPENDS)
 
+CIPHER_LENGTH(4 bytes string): default BUFSIZ is 8192, so 4 bytes is enough.
+
 ## key
 
 you can use `openssl rand -base64 24` to get a 32 bytes strong password.
@@ -29,6 +31,6 @@ gcc loop_server.c -lmbedcrypto -o b.out
 
 ---
 
-CIPHER_LENGTH(4 bytes string): default BUFSIZ is 8192, so 4 bytes is enough.
+CIPHER, TAG, IV,ADD may contain `0x00`, so you should not use function like strcat or strlen, these function would "cut the string" prematurely when they met `0x00`, you should use functions like memcpy instead.
 
-CIPHER, TAG, IV,ADD 等中可能存在 0x00, 这样用 strcat strlen 等会有问题，如遇到会提前截断。用 memcpy 之类的替代。由于此，服务器以及客户端在互相传递加密数据时可能存在 0x00,所以也要同时附上密文的长度，以便通信的对方确定应该读取密文的长度是多少。对于 IV ADD 以及 TAG 在本实现中均为固定程度 所以在两端传输数据时,这些字段可不传长度
+And because of this, when you transfer data between server and client, the cipher may contain `0x00`, so you should also append the cipher length, in this way, the server or client will know who long the cipher is. IV\ADD\TAG's length is fixed, so don't need to pass their length.
