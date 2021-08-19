@@ -18,6 +18,20 @@
 #define GET_REQUEST "GET / HTTP/1.0\r\n\r\n"
 #define REQUEST_SERVER_PORT 80
 
+/**
+ * \brief               This function parse the client's request.
+ *
+ * \param buffer        Client's request data.
+ * \param IV            IV to be used in cryption.The value is different in each
+ *                      communication.
+ * \param ADD           ADD to be used in cryption.The value is different in
+ *                      each communication.
+ * \param cipher        Used to store cipher data.
+ * \param cipher_length \p cipher length.
+ * \param tag           Used to store parsed tag data.
+ *
+ * \return              \c 0 on success.
+ */
 int parse_client_request(unsigned char *buffer, unsigned char *IV,
                          unsigned char *ADD, unsigned char *cipher,
                          int *cipher_length, unsigned char *tag);
@@ -79,40 +93,25 @@ int main() {
          sizeof(buffer) - 1); // read client data
 
     // parse client request
-    unsigned char *IV;
-    unsigned char *ADD;
-    unsigned char *cipher;
-    int cipher_length = 0;
-    unsigned char *tag;
-    unsigned char *result;
-    tag = malloc(sizeof(char) * TAG_LENGTH);
-    ADD = malloc(sizeof(char) * ADD_LENGTH);
-    IV = malloc(sizeof(char) * IV_LENGTH);
-    cipher = malloc(sizeof(char) * BUFSIZ);
+    unsigned char IV[IV_LENGTH] = {0};
+    unsigned char ADD[ADD_LENGTH] = {0};
+    unsigned char cipher[BUFSIZ] = {0};
+    unsigned char tag[TAG_LENGTH] = {0};
 
+    char *SERVER_NAME;
+    int cipher_length = 0;
     parse_client_request(buffer, IV, ADD, cipher, &cipher_length, tag);
 
-    printf("\n  . CIPHER LENGTH:-------- %d", cipher_length);
-    dump_buf("\n  . IV:--------", IV, IV_LENGTH);
-    dump_buf("\n  . ADD:--------", ADD, ADD_LENGTH);
-    dump_buf("\n  . tag:--------", tag, TAG_LENGTH);
-    dump_buf("\n  . cipher:--------", cipher, cipher_length);
-
-    result = malloc(sizeof(char) * cipher_length);
+    SERVER_NAME = malloc(sizeof(char) * cipher_length);
 
     // decrypt the ciphet to get address
-    char *SERVER_NAME;
-    if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD, tag, result,
-                        ctx)) {
+    if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD, tag,
+                        (unsigned char *)SERVER_NAME, ctx)) {
       // auth failed
       // terminate connection immediately
       close(clnt_sock);
-      close(serv_sock);
       return 0;
     }
-
-    printf("\n\n\n%s\n\n\n", result);
-    SERVER_NAME = (char *)result;
 
     int request_server_fd;
     // buffer to send request and accept target server response
@@ -196,57 +195,49 @@ int main() {
       printf(" %d bytes read\n\n%s", len, server_use_buf);
       // send back to client
       // encrypt the data of send back to client
-      unsigned char *encrypt_tag;
-      unsigned char *encrypt_cipher;
-      encrypt_tag = malloc(sizeof(char) * TAG_LENGTH);
-      encrypt_cipher = malloc(sizeof(char) * BUFSIZ);
-      memset(encrypt_tag, 0, TAG_LENGTH);
-      memset(encrypt_cipher, 0, BUFSIZ);
+      unsigned char encrypt_tag[TAG_LENGTH] = {0};
+      unsigned char encrypt_cipher[BUFSIZ] = {0};
 
       int length;
 
       // cipher or tag may contains '00'
       // so should not use strlen
-      dump_buf("\n  . encrypt used IV :--------", IV, IV_LENGTH);
-      dump_buf("\n  . encrypt used ADD  :--------", ADD, ADD_LENGTH);
-      printf("\nencrypt used KEY \n%s", KEY);
       encrypt_aes_gcm(KEY, server_use_buf, IV, ADD, encrypt_tag, encrypt_cipher,
                       &length, ctx);
 
-      printf("\n\nreturn cipher length: %d\n\n", length);
-      memset(server_use_buf, 0, BUFSIZ);
-
       // append cipher length
-      char *length_buffer = malloc(sizeof(char) * CIPHER_LENGTH);
-      memset(length_buffer, 0, CIPHER_LENGTH);
+      char length_buffer[CIPHER_LENGTH] = {0};
       sprintf(length_buffer, "%d", length);
       memcpy(server_use_buf, length_buffer, CIPHER_LENGTH);
-      dump_buf("\n  . cipher length :--------", (unsigned char *)server_use_buf,
-               CIPHER_LENGTH);
+      // dump_buf("\n  . cipher length :--------", (unsigned char
+      // *)server_use_buf,
+      //          CIPHER_LENGTH);
 
       // append tag
       memcpy(server_use_buf + CIPHER_LENGTH, encrypt_tag, TAG_LENGTH);
-      dump_buf("\n  . add tag :--------", (unsigned char *)server_use_buf,
-               CIPHER_LENGTH + TAG_LENGTH);
+      // dump_buf("\n  . add tag :--------", (unsigned char *)server_use_buf,
+      //          CIPHER_LENGTH + TAG_LENGTH);
 
       // append cipher
       memcpy(server_use_buf + CIPHER_LENGTH + TAG_LENGTH, encrypt_cipher,
              length);
-      dump_buf("\n  . add encrypt_cipher :--------",
-               (unsigned char *)server_use_buf,
-               CIPHER_LENGTH + TAG_LENGTH + length);
+      // dump_buf("\n  . add encrypt_cipher :--------",
+      //          (unsigned char *)server_use_buf,
+      //          CIPHER_LENGTH + TAG_LENGTH + length);
 
       write(clnt_sock, server_use_buf, CIPHER_LENGTH + TAG_LENGTH + length);
 
     } while (1);
 
-    printf("\n\n\n\n\nget %d bytes\n", total_response_len);
+    printf("\ntotally get %d bytes\n", total_response_len);
 
     close(request_server_fd);
     close(clnt_sock);
     mbedtls_cipher_free(ctx);
     free(ctx);
     ctx = NULL;
+    free(SERVER_NAME);
+    SERVER_NAME = NULL;
     memset(buffer, 0, BUFSIZ);
   }
 
@@ -259,10 +250,9 @@ int parse_client_request(unsigned char *buffer, unsigned char *IV,
                          unsigned char *ADD, unsigned char *cipher,
                          int *cipher_length, unsigned char *tag) {
 
-  char *length_buffer = malloc(sizeof(char) * CIPHER_LENGTH);
+  char length_buffer[CIPHER_LENGTH] = {0};
   memcpy(length_buffer, buffer, CIPHER_LENGTH);
   int len = atoi(length_buffer);
-  printf("\nreceive client cipher length : %d\n\n", len);
 
   *cipher_length = len;
   memcpy(IV, buffer + CIPHER_LENGTH, IV_LENGTH);
