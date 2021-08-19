@@ -29,6 +29,28 @@ gcc loop_client.c -lmbedcrypto
 gcc loop_server.c -lmbedcrypto -o b.out
 ```
 
+## process
+
+client:
+
+1. init IV and ADD
+2. wait for input
+3. encrypt the input
+4. assemble and send data to server
+
+server:
+
+5. parse data send by client. server and client share IV and ADD now.
+6. decrypt data, get the plain text: address
+7. request target address
+8. encrypt received data
+9. assemble and send data to client
+
+client:
+
+10. parse data send by server.
+11. decrypt data, get the plain text: desired data
+
 ---
 
 CIPHER, TAG, IV,ADD may contain `0x00`, so you should not use function like strcat or strlen, these function would "cut the string" prematurely when they met `0x00`, you should use functions like memcpy instead.
