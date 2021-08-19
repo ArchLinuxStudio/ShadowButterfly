@@ -43,17 +43,27 @@ int main() {
     mbedtls_printf("cipher info setup, name: %s, block size: %d\n",
                    mbedtls_cipher_get_name(ctx),
                    mbedtls_cipher_get_block_size(ctx));
+
+    int ret;
+
     // init IV
-    unsigned char *IV;
-    IV = malloc(sizeof(char) * IV_LENGTH);
-    ctr_drbg_random(IV_LENGTH, IV);
+    unsigned char IV[IV_LENGTH] = {0};
+    ret = ctr_drbg_random(IV_LENGTH, IV);
+    if (ret != 0) {
+      fprintf(stderr, "get random error! mbedtls_ctr_drbg_random return: %d \n",
+              ret);
+      return ret;
+    }
     // dump_buf("\n  . generate 64 byte random data:IV ... ok", IV, IV_LENGTH);
 
     // init ADD
-    unsigned char *ADD;
-
-    ADD = malloc(sizeof(char) * ADD_LENGTH);
-    ctr_drbg_random(ADD_LENGTH, ADD);
+    unsigned char ADD[ADD_LENGTH] = {0};
+    ret = ctr_drbg_random(ADD_LENGTH, ADD);
+    if (ret != 0) {
+      fprintf(stderr, "get random error! mbedtls_ctr_drbg_random return: %d \n",
+              ret);
+      return ret;
+    }
     // dump_buf("\n  . generate 64 byte random data:ADD ... ok", ADD,
     // ADD_LENGTH);
 
@@ -63,7 +73,7 @@ int main() {
         -1)
       return -1;
 
-    // get the string entered by the user and
+    // get the string entered by the user
     printf("Input a website address: ");
     fgets(buf_send, BUFSIZ, stdin);
     // trim \n

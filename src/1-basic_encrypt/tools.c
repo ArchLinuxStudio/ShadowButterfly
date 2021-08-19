@@ -32,11 +32,6 @@ int ctr_drbg_random(int length, unsigned char *random_num) {
                               (const unsigned char *)pers, strlen(pers));
 
   ret = mbedtls_ctr_drbg_random(&ctr_drbg, random, length);
-  if (ret != 0) {
-    fprintf(stderr, "get random error! mbedtls_ctr_drbg_random return: %d \n",
-            ret);
-    return ret;
-  }
 
   mbedtls_ctr_drbg_free(&ctr_drbg);
   mbedtls_entropy_free(&entropy);
