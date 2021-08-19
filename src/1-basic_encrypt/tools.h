@@ -73,3 +73,17 @@ int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
  * \return              NONE
  */
 void dump_buf(char *info, uint8_t *buf, uint32_t len);
+
+/**
+ * \brief               This function init and setup cipher context.
+ *
+ * \param ctx           mbedtls cipher context to be init and setup.
+ * \param type          AEAD algorithm.
+ *
+ * \return              \c 0 on success.
+ * \return              #MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA on
+ *                      parameter-verification failure.
+ * \return              #MBEDTLS_ERR_CIPHER_ALLOC_FAILED if allocation of the
+ *                      cipher-specific context fails.
+ */
+int init_cipher_context(mbedtls_cipher_context_t *ctx, mbedtls_cipher_type_t type);

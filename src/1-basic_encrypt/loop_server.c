@@ -58,19 +58,20 @@ int main() {
   unsigned char buffer[BUFSIZ] = {0};
 
   mbedtls_cipher_context_t *ctx;
-  const mbedtls_cipher_info_t *info;
 
   // main loop
   while (1) {
+    int ret = 0;
+
     ctx = malloc(sizeof(mbedtls_cipher_context_t));
     memset(ctx, 0, sizeof(mbedtls_cipher_context_t));
 
-    mbedtls_cipher_init(ctx);
-    info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_256_GCM);
-    mbedtls_cipher_setup(ctx, info);
-    mbedtls_printf("cipher info setup, name: %s, block size: %d\n",
-                   mbedtls_cipher_get_name(ctx),
-                   mbedtls_cipher_get_block_size(ctx));
+    ret = init_cipher_context(ctx, MBEDTLS_CIPHER_AES_256_GCM);
+    if (ret != 0) {
+      fprintf(stderr, "init_cipher_context error! : %d \n", ret);
+      return ret;
+    }
+
     // accept
     int clnt_sock =
         accept(serv_sock, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
@@ -119,7 +120,6 @@ int main() {
     struct sockaddr_in request_server_addr;
     struct hostent *request_server_host;
 
-    int ret = 0;
     int len = 0;
     int total_response_len = 0;
     /*
