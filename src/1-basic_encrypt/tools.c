@@ -36,7 +36,7 @@ int ctr_drbg_random(int length, unsigned char *random_num) {
 }
 
 int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
-                    unsigned char *iv, unsigned char *add, unsigned char *tag,
+                    unsigned char *iv, unsigned char *add,
                     unsigned char *result, mbedtls_cipher_context_t *ctx) {
 
   size_t result_len = 0;
@@ -44,24 +44,23 @@ int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
   mbedtls_cipher_setkey(ctx, (const unsigned char *)key, strlen(key) * 8,
                         MBEDTLS_DECRYPT);
 
-  int ret = mbedtls_cipher_auth_decrypt(ctx, iv, IV_LENGTH, add, ADD_LENGTH,
-                                        input, input_length, result,
-                                        &result_len, tag, TAG_LENGTH);
+  int ret = mbedtls_cipher_auth_decrypt_ext(ctx, iv, IV_LENGTH, add, ADD_LENGTH,
+                                            input, input_length, result, BUFSIZ,
+                                            &result_len, TAG_LENGTH);
 
   return ret;
 }
 
 int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
-                    unsigned char *add, unsigned char *tag,
-                    unsigned char *ret_cipher, int *length,
+                    unsigned char *add, unsigned char *ret_cipher, int *length,
                     mbedtls_cipher_context_t *ctx) {
   int ret;
   size_t len;
   mbedtls_cipher_setkey(ctx, (const unsigned char *)key, strlen(key) * 8,
                         MBEDTLS_ENCRYPT);
-  ret = mbedtls_cipher_auth_encrypt(ctx, iv, IV_LENGTH, add, ADD_LENGTH,
-                                    (const unsigned char *)input, strlen(input),
-                                    ret_cipher, &len, tag, TAG_LENGTH);
+  ret = mbedtls_cipher_auth_encrypt_ext(
+      ctx, iv, IV_LENGTH, add, ADD_LENGTH, (const unsigned char *)input,
+      strlen(input), ret_cipher, BUFSIZ, &len, TAG_LENGTH);
   *length = len;
   return ret;
 }

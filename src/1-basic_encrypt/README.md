@@ -4,11 +4,15 @@ Basic version with a rough AEAD encrypt.
 
 ## client send request
 
-CIPHER_LENGTH(4 bytes string) + IV_LENGTH(64) + ADD_LENGTH(64) + TAG_LENGTH(16) + CIPHER(IT DEPENDS)
+> For AEAD modes, the tag will be appended to the ciphertext, as recommended by RFC 5116.
+
+CIPHER_LENGTH actually contain the cipher length and tag length.
+
+CIPHER_LENGTH(4 bytes string) + IV_LENGTH(64) + ADD_LENGTH(64) + CIPHER(IT DEPENDS)
 
 ## server send back data to client
 
-CIPHER_LENGTH(4 bytes string) + TAG_LENGTH(16) + CIPHER(IT DEPENDS)
+CIPHER_LENGTH(4 bytes string) + CIPHER(IT DEPENDS)
 
 CIPHER_LENGTH(4 bytes string): default BUFSIZ is 8192, so 4 bytes is enough.
 

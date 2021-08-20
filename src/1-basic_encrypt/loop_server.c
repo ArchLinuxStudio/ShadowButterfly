@@ -34,7 +34,7 @@
  */
 int parse_client_request(unsigned char *buffer, unsigned char *IV,
                          unsigned char *ADD, unsigned char *cipher,
-                         int *cipher_length, unsigned char *tag);
+                         int *cipher_length);
 
 int main() {
   // init socket
@@ -96,16 +96,15 @@ int main() {
     unsigned char IV[IV_LENGTH] = {0};
     unsigned char ADD[ADD_LENGTH] = {0};
     unsigned char cipher[BUFSIZ] = {0};
-    unsigned char tag[TAG_LENGTH] = {0};
 
     char *SERVER_NAME;
     int cipher_length = 0;
-    parse_client_request(buffer, IV, ADD, cipher, &cipher_length, tag);
+    parse_client_request(buffer, IV, ADD, cipher, &cipher_length);
 
     SERVER_NAME = malloc(sizeof(char) * cipher_length);
 
     // decrypt the ciphet to get address
-    if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD, tag,
+    if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD,
                         (unsigned char *)SERVER_NAME, ctx)) {
       // auth failed
       // terminate connection immediately
@@ -179,9 +178,8 @@ int main() {
     printf("  < Read from server: %s", SERVER_NAME);
     fflush(stdout);
     do {
-      // the 16 is subtracted to reserve space for the tag
       // the 4 is subtracted to reserve space for the cipher length
-      len = sizeof(server_use_buf) - 1 - CIPHER_LENGTH - TAG_LENGTH;
+      len = sizeof(server_use_buf) - 1 - CIPHER_LENGTH;
       memset(server_use_buf, 0, sizeof(server_use_buf));
       ret = read(request_server_fd, server_use_buf, len);
 
@@ -195,15 +193,14 @@ int main() {
       printf(" %d bytes read\n\n%s", len, server_use_buf);
       // send back to client
       // encrypt the data of send back to client
-      unsigned char encrypt_tag[TAG_LENGTH] = {0};
       unsigned char encrypt_cipher[BUFSIZ] = {0};
 
       int length;
 
       // cipher or tag may contains '00'
       // so should not use strlen
-      encrypt_aes_gcm(KEY, server_use_buf, IV, ADD, encrypt_tag, encrypt_cipher,
-                      &length, ctx);
+      encrypt_aes_gcm(KEY, server_use_buf, IV, ADD, encrypt_cipher, &length,
+                      ctx);
 
       // append cipher length
       char length_buffer[CIPHER_LENGTH] = {0};
@@ -213,19 +210,13 @@ int main() {
       // *)server_use_buf,
       //          CIPHER_LENGTH);
 
-      // append tag
-      memcpy(server_use_buf + CIPHER_LENGTH, encrypt_tag, TAG_LENGTH);
-      // dump_buf("\n  . add tag :--------", (unsigned char *)server_use_buf,
-      //          CIPHER_LENGTH + TAG_LENGTH);
-
       // append cipher
-      memcpy(server_use_buf + CIPHER_LENGTH + TAG_LENGTH, encrypt_cipher,
-             length);
+      memcpy(server_use_buf + CIPHER_LENGTH, encrypt_cipher, length);
       // dump_buf("\n  . add encrypt_cipher :--------",
       //          (unsigned char *)server_use_buf,
       //          CIPHER_LENGTH + TAG_LENGTH + length);
 
-      write(clnt_sock, server_use_buf, CIPHER_LENGTH + TAG_LENGTH + length);
+      write(clnt_sock, server_use_buf, CIPHER_LENGTH + length);
 
     } while (1);
 
@@ -248,7 +239,7 @@ int main() {
 
 int parse_client_request(unsigned char *buffer, unsigned char *IV,
                          unsigned char *ADD, unsigned char *cipher,
-                         int *cipher_length, unsigned char *tag) {
+                         int *cipher_length) {
 
   char length_buffer[CIPHER_LENGTH] = {0};
   memcpy(length_buffer, buffer, CIPHER_LENGTH);
@@ -257,8 +248,6 @@ int parse_client_request(unsigned char *buffer, unsigned char *IV,
   *cipher_length = len;
   memcpy(IV, buffer + CIPHER_LENGTH, IV_LENGTH);
   memcpy(ADD, buffer + CIPHER_LENGTH + IV_LENGTH, ADD_LENGTH);
-  memcpy(tag, buffer + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, TAG_LENGTH);
-  memcpy(cipher, buffer + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH + TAG_LENGTH,
-         len);
+  memcpy(cipher, buffer + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, len);
   return 0;
 }
