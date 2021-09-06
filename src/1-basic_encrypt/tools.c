@@ -47,11 +47,14 @@ int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
   int ret = mbedtls_cipher_auth_decrypt_ext(ctx, iv, IV_LENGTH, add, ADD_LENGTH,
                                             input, input_length, result, BUFSIZ,
                                             &result_len, TAG_LENGTH);
+  if (ret != 0) {
+    printf("\n decrypt failed! -0x%04X\n", -ret);
+  }
 
   return ret;
 }
 
-int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
+int encrypt_aes_gcm(char *key, char *input, int input_length, unsigned char *iv,
                     unsigned char *add, unsigned char *ret_cipher, int *length,
                     mbedtls_cipher_context_t *ctx) {
   int ret;
@@ -60,7 +63,10 @@ int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
                         MBEDTLS_ENCRYPT);
   ret = mbedtls_cipher_auth_encrypt_ext(
       ctx, iv, IV_LENGTH, add, ADD_LENGTH, (const unsigned char *)input,
-      strlen(input), ret_cipher, BUFSIZ, &len, TAG_LENGTH);
+      input_length, ret_cipher, BUFSIZ, &len, TAG_LENGTH);
+  if (ret != 0) {
+    printf("\nencrypt failed! -0x%04X\n", -ret);
+  }
   *length = len;
   return ret;
 }

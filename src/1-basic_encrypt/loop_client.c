@@ -27,6 +27,18 @@
 int parse_server_send_back(unsigned char *buffer, unsigned char *cipher,
                            int *cipher_length);
 
+/**
+ * \brief               This function parse the server send back data.
+ *
+ * \param buffer        Server's send back data.
+ * \param total_length  The whole buffer length.
+ *
+ * \return              \c 0 on success.
+ */
+int loop_parse_server_send_back(char *buffer, int total_length,
+                                unsigned char *iv, unsigned char *add,
+                                mbedtls_cipher_context_t *ctx);
+
 int main() {
   // initiate struct sockaddr_in of the server (specific IP and port)
   struct sockaddr_in serv_addr;
@@ -53,6 +65,8 @@ int main() {
       return ret;
     }
 
+    mbedtls_printf("\n  ------ init cipher content......ok.\n");
+
     // init IV
     unsigned char IV[IV_LENGTH] = {0};
     ret = ctr_drbg_random(IV_LENGTH, IV);
@@ -61,7 +75,6 @@ int main() {
               ret);
       return ret;
     }
-    dump_buf("\n  . generate 64 byte random data:IV ... ok", IV, IV_LENGTH);
 
     // init ADD
     unsigned char ADD[ADD_LENGTH] = {0};
@@ -71,7 +84,8 @@ int main() {
               ret);
       return ret;
     }
-    dump_buf("\n  . generate 64 byte random data:ADD ... ok", ADD, ADD_LENGTH);
+
+    mbedtls_printf("\n  ------ init IV&ADD......ok.\n");
 
     // create socket
     int serv_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -85,18 +99,14 @@ int main() {
     // trim \n
     buf_send[strlen(buf_send) - 1] = 0;
 
-    // unsigned char tag[TAG_LENGTH] = {0};
     unsigned char cipher[BUFSIZ] = {0};
     int length = 0;
 
     // encrypt request website address
-    ret = encrypt_aes_gcm(KEY, buf_send, IV, ADD, cipher, &length, ctx);
-    if (ret != 0) {
-      fprintf(stderr, "encrypt failed: %d \n", ret);
-      return ret;
-    }
-    // dump_buf("\n  . tag: ... ok", tag, TAG_LENGTH);
-    dump_buf("\n  . cipher: ... ok", cipher, length);
+    ret = encrypt_aes_gcm(KEY, buf_send, strlen(buf_send), IV, ADD, cipher,
+                          &length, ctx);
+
+    mbedtls_printf("\n  ------ encrypt user input data......ok.\n");
 
     memset(buf_send, 0, BUFSIZ);
 
@@ -109,49 +119,33 @@ int main() {
     memcpy(buf_send + CIPHER_LENGTH, IV, IV_LENGTH);
     memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH, ADD, ADD_LENGTH);
 
-    // append TAG
-    // memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, tag,
-    // TAG_LENGTH);
-
     // append cipher
     memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, cipher, length);
 
-    dump_buf("\n  . buffend send: ... ok", (unsigned char *)buf_send,
-             CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH + length);
+    mbedtls_printf("\n  ------ assemble all send data......ok.\n");
 
     // send all data to the server
     send(serv_sock, buf_send, CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH + length,
          0);
 
-    do {
-      memset(buf_recv, 0, sizeof(buf_recv));
+    mbedtls_printf("\n  ------ all data sent......ok.\n");
 
+    char total_buf[100000] = {0};
+    int total_length = 0;
+
+    do {
+      memset(buf_recv, 0, BUFSIZ);
       // receive the data returned by the server
-      int ret = recv(serv_sock, buf_recv, sizeof(buf_recv) - 1, 0);
+      int ret = recv(serv_sock, buf_recv, BUFSIZ - 1, 0);
       if (ret <= 0) {
-        printf("\n read finished or error: %d\n\n", ret);
+        mbedtls_printf("\n read finished or error: %d bytes totaly received\n",
+                       total_length);
+        loop_parse_server_send_back(total_buf, total_length, IV, ADD, ctx);
         break;
       }
-
-      // decrypt
-      unsigned char decrypt_result[BUFSIZ] = {0};
-      unsigned char decrypt_cipher[BUFSIZ] = {0};
-
-      int cipher_length = 0;
-
-      parse_server_send_back((unsigned char *)buf_recv, decrypt_cipher,
-                             &cipher_length);
-
-      if (decrypt_aes_gcm(KEY, decrypt_cipher, cipher_length, IV, ADD,
-                          decrypt_result, ctx)) {
-        // auth failed
-        // terminate connection immediately
-        close(serv_sock);
-        return -1;
-      }
-      // only print in this example
-      printf("\n\n%d bytes readed(include tag)\n\n", cipher_length);
-      printf("\n\nMessage form server: %s\n\n", decrypt_result);
+      // store all buf to total_buf
+      memcpy(total_buf + total_length, buf_recv, ret);
+      total_length += ret;
 
     } while (1);
 
@@ -176,4 +170,46 @@ int parse_server_send_back(unsigned char *buffer, unsigned char *cipher,
   memcpy(cipher, buffer + CIPHER_LENGTH, len);
 
   return 0;
+}
+
+int loop_parse_server_send_back(char *buffer, int total_length,
+                                unsigned char *iv, unsigned char *add,
+                                mbedtls_cipher_context_t *ctx) {
+
+  int readed_length = 0;
+  int ret = 0;
+  while (readed_length < total_length) {
+    // first, get the cipher length
+    char length_buffer[CIPHER_LENGTH] = {0};
+    memcpy(length_buffer, buffer + readed_length, CIPHER_LENGTH);
+    readed_length += CIPHER_LENGTH;
+    int len = atoi(length_buffer);
+
+    // second, read the cipher
+    char *cipher_buffer = malloc(sizeof(char) * len);
+    memset(cipher_buffer, 0, len);
+    memcpy(cipher_buffer, buffer + readed_length, len);
+    readed_length += len;
+
+    mbedtls_printf("\n  ------ parted package length: %d\n", len);
+    // dump_buf("\n  . client received cipher data :--------",
+    //          (unsigned char *)cipher_buffer, len);
+
+    // decrypt
+    char *decrypt_result = malloc(sizeof(char) * len);
+    memset(decrypt_result, 0, len);
+
+    ret = decrypt_aes_gcm(KEY, (unsigned char *)cipher_buffer, len, iv, add,
+                          (unsigned char *)decrypt_result, ctx);
+
+    // only print result in this sample program.
+    mbedtls_printf("\n  ------ Message form server: %s\n", decrypt_result);
+
+    free(cipher_buffer);
+    cipher_buffer = NULL;
+    free(decrypt_result);
+    decrypt_result = NULL;
+  }
+
+  return ret;
 }

@@ -19,6 +19,7 @@ int ctr_drbg_random(int length, unsigned char *random_num);
  *
  * \param key           Symmetric encryption key.
  * \param input         Data to be encrypted.
+ * \param input_length
  * \param iv            IV or Nonce to be used in AEAD.
  * \param add           Additional Data to be used in AEAD.
  * \param ret_cipher    Generated ciphertext.
@@ -31,7 +32,7 @@ int ctr_drbg_random(int length, unsigned char *random_num);
  *                      parameter-verification failure.
  * \return              A cipher-specific error code on failure.
  */
-int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
+int encrypt_aes_gcm(char *key, char *input, int input_length, unsigned char *iv,
                     unsigned char *add, unsigned char *ret_cipher, int *length,
                     mbedtls_cipher_context_t *ctx);
 
