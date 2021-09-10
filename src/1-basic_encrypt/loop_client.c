@@ -25,7 +25,7 @@
  * \return              \c 0 on success.
  */
 int parse_server_send_back(unsigned char *buffer, unsigned char *cipher,
-                           int *cipher_length, unsigned char *tag);
+                           int *cipher_length);
 
 int main() {
   // initiate struct sockaddr_in of the server (specific IP and port)
@@ -136,7 +136,7 @@ int main() {
       int cipher_length = 0;
 
       parse_server_send_back((unsigned char *)buf_recv, decrypt_cipher,
-                             &cipher_length, decrypt_tag);
+                             &cipher_length);
 
       if (decrypt_aes_gcm(KEY, decrypt_cipher, cipher_length, IV, ADD,
                           decrypt_tag, decrypt_result, ctx)) {
@@ -163,7 +163,7 @@ int main() {
 }
 
 int parse_server_send_back(unsigned char *buffer, unsigned char *cipher,
-                           int *cipher_length, unsigned char *tag) {
+                           int *cipher_length) {
   char length_buffer[CIPHER_LENGTH] = {0};
   memcpy(length_buffer, buffer, CIPHER_LENGTH);
   int len = atoi(length_buffer);

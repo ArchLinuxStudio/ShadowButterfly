@@ -34,7 +34,7 @@
  */
 int parse_client_request(unsigned char *buffer, unsigned char *IV,
                          unsigned char *ADD, unsigned char *cipher,
-                         int *cipher_length, unsigned char *tag);
+                         int *cipher_length);
 
 int main() {
   // init socket
@@ -100,7 +100,7 @@ int main() {
 
     char *SERVER_NAME;
     int cipher_length = 0;
-    parse_client_request(buffer, IV, ADD, cipher, &cipher_length, tag);
+    parse_client_request(buffer, IV, ADD, cipher, &cipher_length);
 
     SERVER_NAME = malloc(sizeof(char) * cipher_length);
 
@@ -242,8 +242,7 @@ int main() {
 
 int parse_client_request(unsigned char *buffer, unsigned char *IV,
                          unsigned char *ADD, unsigned char *cipher,
-                         int *cipher_length, unsigned char *tag) {
-
+                         int *cipher_length) {
   char length_buffer[CIPHER_LENGTH] = {0};
   memcpy(length_buffer, buffer, CIPHER_LENGTH);
   int len = atoi(length_buffer);
