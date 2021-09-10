@@ -28,7 +28,6 @@
  *                      each communication.
  * \param cipher        Used to store cipher data.
  * \param cipher_length \p cipher length.
- * \param tag           Used to store parsed tag data.
  *
  * \return              \c 0 on success.
  */
@@ -105,7 +104,7 @@ int main() {
     SERVER_NAME = malloc(sizeof(char) * cipher_length);
 
     // decrypt the ciphet to get address
-    if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD, tag,
+    if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD,
                         (unsigned char *)SERVER_NAME, ctx)) {
       // auth failed
       // terminate connection immediately

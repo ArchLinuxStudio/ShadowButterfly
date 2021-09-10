@@ -36,7 +36,7 @@ int ctr_drbg_random(int length, unsigned char *random_num) {
 }
 
 int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
-                    unsigned char *iv, unsigned char *add, unsigned char *tag,
+                    unsigned char *iv, unsigned char *add,
                     unsigned char *result, mbedtls_cipher_context_t *ctx) {
 
   size_t result_len = 0;

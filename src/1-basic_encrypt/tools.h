@@ -45,7 +45,6 @@ int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
  * \param input_length  \p input cipher length.
  * \param iv            IV or Nonce to be used in AEAD.
  * \param add           Additional Data to be used in AEAD.
- * \param tag           The generated verification code, also called MAC or TAG.
  * \param result        Generated plaintext.
  * \param ctx           The generic cipher context. This must be initialized and
  *                      bound to a key associated with an AEAD algorithm.
@@ -57,8 +56,7 @@ int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
  * \return              A cipher-specific error code on failure.
  */
 int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
-                    unsigned char *iv, unsigned char *add, unsigned char *tag,
-                    unsigned char *result, mbedtls_cipher_context_t *ctx);
+                    unsigned char *iv, unsigned char *add, unsigned char *result, mbedtls_cipher_context_t *ctx);
 
 
 /**

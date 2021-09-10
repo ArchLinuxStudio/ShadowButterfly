@@ -130,7 +130,6 @@ int main() {
       // decrypt
       unsigned char decrypt_result[BUFSIZ] = {0};
       unsigned char decrypt_cipher[BUFSIZ] = {0};
-      unsigned char decrypt_tag[TAG_LENGTH] = {0};
 
       int cipher_length = 0;
 
@@ -138,7 +137,7 @@ int main() {
                              &cipher_length);
 
       if (decrypt_aes_gcm(KEY, decrypt_cipher, cipher_length, IV, ADD,
-                          decrypt_tag, decrypt_result, ctx)) {
+                          decrypt_result, ctx)) {
         // auth failed
         // terminate connection immediately
         close(serv_sock);
