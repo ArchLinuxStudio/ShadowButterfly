@@ -108,12 +108,8 @@ int main() {
     memcpy(buf_send + CIPHER_LENGTH, IV, IV_LENGTH);
     memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH, ADD, ADD_LENGTH);
 
-    // append TAG
-    memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, tag, TAG_LENGTH);
-
     // append cipher
-    memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH + TAG_LENGTH,
-           cipher, length);
+    memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, cipher, length);
 
     // dump_buf("\n  . buffend send: ... ok", (unsigned char *)buf_send,
     //          CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH + TAG_LENGTH + length);
@@ -173,8 +169,7 @@ int parse_server_send_back(unsigned char *buffer, unsigned char *cipher,
   int len = atoi(length_buffer);
 
   *cipher_length = len;
-  memcpy(tag, buffer + CIPHER_LENGTH, TAG_LENGTH);
-  memcpy(cipher, buffer + CIPHER_LENGTH + TAG_LENGTH, len);
+  memcpy(cipher, buffer + CIPHER_LENGTH, len);
 
   return 0;
 }

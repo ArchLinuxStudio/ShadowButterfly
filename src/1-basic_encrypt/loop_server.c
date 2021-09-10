@@ -213,19 +213,13 @@ int main() {
       // *)server_use_buf,
       //          CIPHER_LENGTH);
 
-      // append tag
-      memcpy(server_use_buf + CIPHER_LENGTH, encrypt_tag, TAG_LENGTH);
-      // dump_buf("\n  . add tag :--------", (unsigned char *)server_use_buf,
-      //          CIPHER_LENGTH + TAG_LENGTH);
-
       // append cipher
-      memcpy(server_use_buf + CIPHER_LENGTH + TAG_LENGTH, encrypt_cipher,
-             length);
+      memcpy(server_use_buf + CIPHER_LENGTH, encrypt_cipher, length);
       // dump_buf("\n  . add encrypt_cipher :--------",
       //          (unsigned char *)server_use_buf,
       //          CIPHER_LENGTH + TAG_LENGTH + length);
 
-      write(clnt_sock, server_use_buf, CIPHER_LENGTH + TAG_LENGTH + length);
+      write(clnt_sock, server_use_buf, CIPHER_LENGTH + length);
 
     } while (1);
 
@@ -257,8 +251,6 @@ int parse_client_request(unsigned char *buffer, unsigned char *IV,
   *cipher_length = len;
   memcpy(IV, buffer + CIPHER_LENGTH, IV_LENGTH);
   memcpy(ADD, buffer + CIPHER_LENGTH + IV_LENGTH, ADD_LENGTH);
-  memcpy(tag, buffer + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, TAG_LENGTH);
-  memcpy(cipher, buffer + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH + TAG_LENGTH,
-         len);
+  memcpy(cipher, buffer + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, len);
   return 0;
 }
