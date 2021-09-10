@@ -47,7 +47,9 @@ int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
   int ret = mbedtls_cipher_auth_decrypt_ext(ctx, iv, IV_LENGTH, add, ADD_LENGTH,
                                             input, input_length, result, BUFSIZ,
                                             &result_len, TAG_LENGTH);
-
+  if (ret != 0) {
+    printf("\ndecrypt failed! -0x%04X\n", -ret);
+  }
   return ret;
 }
 
