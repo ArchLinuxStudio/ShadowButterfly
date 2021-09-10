@@ -86,12 +86,11 @@ int main() {
     // trim \n
     buf_send[strlen(buf_send) - 1] = 0;
 
-    unsigned char tag[TAG_LENGTH] = {0};
     unsigned char cipher[BUFSIZ] = {0};
     int length = 0;
 
     // encrypt request website address
-    ret = encrypt_aes_gcm(KEY, buf_send, IV, ADD, tag, cipher, &length, ctx);
+    ret = encrypt_aes_gcm(KEY, buf_send, IV, ADD, cipher, &length, ctx);
     if (ret != 0) {
       fprintf(stderr, "encrypt failed: %d \n", ret);
       return ret;

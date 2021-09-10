@@ -195,15 +195,14 @@ int main() {
       printf(" %d bytes read\n\n%s", len, server_use_buf);
       // send back to client
       // encrypt the data of send back to client
-      unsigned char encrypt_tag[TAG_LENGTH] = {0};
       unsigned char encrypt_cipher[BUFSIZ] = {0};
 
       int length;
 
       // cipher or tag may contains '00'
       // so should not use strlen
-      encrypt_aes_gcm(KEY, server_use_buf, IV, ADD, encrypt_tag, encrypt_cipher,
-                      &length, ctx);
+      encrypt_aes_gcm(KEY, server_use_buf, IV, ADD, encrypt_cipher, &length,
+                      ctx);
 
       // append cipher length
       char length_buffer[CIPHER_LENGTH] = {0};

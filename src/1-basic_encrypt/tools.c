@@ -52,8 +52,7 @@ int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
 }
 
 int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
-                    unsigned char *add, unsigned char *tag,
-                    unsigned char *ret_cipher, int *length,
+                    unsigned char *add, unsigned char *ret_cipher, int *length,
                     mbedtls_cipher_context_t *ctx) {
   int ret;
   size_t len;

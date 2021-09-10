@@ -20,7 +20,6 @@ int ctr_drbg_random(int length, unsigned char *random_num);
  * \param input         Data to be encrypted.
  * \param iv            IV or Nonce to be used in AEAD.
  * \param add           Additional Data to be used in AEAD.
- * \param tag           The generated verification code, also called MAC or TAG.
  * \param ret_cipher    Generated ciphertext.
  * \param length        \p ret_cipher length.
  * \param ctx           The generic cipher context. This must be initialized and
@@ -32,7 +31,7 @@ int ctr_drbg_random(int length, unsigned char *random_num);
  * \return              A cipher-specific error code on failure.
  */
 int encrypt_aes_gcm(char *key, char *input, unsigned char *iv,
-                    unsigned char *add, unsigned char *tag,
+                    unsigned char *add,
                     unsigned char *ret_cipher, int *length,
                     mbedtls_cipher_context_t *ctx);
 
