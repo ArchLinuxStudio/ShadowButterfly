@@ -8,10 +8,12 @@
 #define IV_LENGTH 64
 #define ADD_LENGTH 64
 #define TAG_LENGTH 16
-#define CIPHER_LENGTH 4
+#define CIPHER_LENGTH 5
 
 #define SERVER_ADDRESS "127.0.0.1"
 #define SERVER_PORT 6789
+
+#define TOTAL_BUF_SIZE 1000000
 
 #define KEY "qdEDMtTtJviT/o3V2fa2hKm0+00lT9/1"
 
@@ -44,9 +46,9 @@ int decrypt_aes_gcm(char *key, unsigned char *input, int input_length,
   mbedtls_cipher_setkey(ctx, (const unsigned char *)key, strlen(key) * 8,
                         MBEDTLS_DECRYPT);
 
-  int ret = mbedtls_cipher_auth_decrypt_ext(ctx, iv, IV_LENGTH, add, ADD_LENGTH,
-                                            input, input_length, result, BUFSIZ,
-                                            &result_len, TAG_LENGTH);
+  int ret = mbedtls_cipher_auth_decrypt_ext(
+      ctx, iv, IV_LENGTH, add, ADD_LENGTH, input, input_length, result,
+      TOTAL_BUF_SIZE, &result_len, TAG_LENGTH);
   if (ret != 0) {
     printf("\n decrypt failed! -0x%04X\n", -ret);
   }
@@ -63,7 +65,7 @@ int encrypt_aes_gcm(char *key, char *input, int input_length, unsigned char *iv,
                         MBEDTLS_ENCRYPT);
   ret = mbedtls_cipher_auth_encrypt_ext(
       ctx, iv, IV_LENGTH, add, ADD_LENGTH, (const unsigned char *)input,
-      input_length, ret_cipher, BUFSIZ, &len, TAG_LENGTH);
+      input_length, ret_cipher, TOTAL_BUF_SIZE, &len, TAG_LENGTH);
   if (ret != 0) {
     printf("\nencrypt failed! -0x%04X\n", -ret);
   }

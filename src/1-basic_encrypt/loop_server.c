@@ -28,7 +28,6 @@
  *                      each communication.
  * \param cipher        Used to store cipher data.
  * \param cipher_length \p cipher length.
- * \param tag           Used to store parsed tag data.
  *
  * \return              \c 0 on success.
  */
@@ -68,6 +67,7 @@ int main() {
   // accept client request
   struct sockaddr_in clnt_addr;
   socklen_t clnt_addr_size = sizeof(clnt_addr);
+
   // buffer to accept client message
   unsigned char buffer[BUFSIZ] = {0};
 
@@ -97,11 +97,9 @@ int main() {
     unsigned char ADD[ADD_LENGTH] = {0};
     unsigned char cipher[BUFSIZ] = {0};
 
-    char *SERVER_NAME;
+    char SERVER_NAME[BUFSIZ] = {0};
     int cipher_length = 0;
     parse_client_request(buffer, IV, ADD, cipher, &cipher_length);
-
-    SERVER_NAME = malloc(sizeof(char) * cipher_length);
 
     // decrypt the cipher to get address
     if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD,
@@ -113,13 +111,11 @@ int main() {
     }
 
     int request_server_fd;
-    // buffer to send request and accept target server response
-    char server_use_buf[BUFSIZ];
     struct sockaddr_in request_server_addr;
     struct hostent *request_server_host;
 
     int len = 0;
-    int total_response_len = 0;
+
     /*
      * start the connection
      * gethostbyname & make socket & connect
@@ -159,6 +155,8 @@ int main() {
     printf("  > Write to server: %s", SERVER_NAME);
     fflush(stdout);
 
+    // buffer to send request and accept target server response
+    char server_use_buf[TOTAL_BUF_SIZE] = {0};
     len = sprintf(server_use_buf, GET_REQUEST);
 
     while ((ret = write(request_server_fd, server_use_buf, len)) <= 0) {
@@ -177,55 +175,57 @@ int main() {
 
     printf("  < Read from server: %s", SERVER_NAME);
     fflush(stdout);
+
+    char total_buf[TOTAL_BUF_SIZE] = {0};
+    int total_response_len = 0;
     do {
       // the 4 is subtracted to reserve space for the cipher length
-      // len = BUFSIZ - 1 - CIPHER_LENGTH - TAG_LENGTH;
-      // TODO why MAX is 1000 - 1?
-      len = 1000 - 1 - TAG_LENGTH;
+      len = BUFSIZ - 1 - CIPHER_LENGTH - TAG_LENGTH;
 
-      memset(server_use_buf, 0, BUFSIZ);
+      memset(server_use_buf, 0, TOTAL_BUF_SIZE);
       ret = read(request_server_fd, server_use_buf, len);
 
       if (ret <= 0) {
         printf("\n\nsend complete or error %d\n\n", ret);
         break;
       }
-
-      len = ret;
-      total_response_len += len;
-      printf("\n\n %d bytes read from remote server\n\n", len);
-      // send back to client
-      // encrypt the data of send back to client
-      unsigned char encrypt_cipher[BUFSIZ] = {0};
-
-      int length = 0;
-
-      // cipher or tag may contains '00'
-      // so should not use strlen
-      encrypt_aes_gcm(KEY, server_use_buf, len, IV, ADD, encrypt_cipher,
-                      &length, ctx);
-
-      memset(server_use_buf, 0, BUFSIZ);
-
-      // append cipher length
-      char length_buffer[CIPHER_LENGTH] = {0};
-      sprintf(length_buffer, "%d", length);
-      memcpy(server_use_buf, length_buffer, CIPHER_LENGTH);
-      dump_buf("\n  . cipher length :--------", (unsigned char *)server_use_buf,
-               CIPHER_LENGTH);
-
-      // append cipher
-      memcpy(server_use_buf + CIPHER_LENGTH, encrypt_cipher, length);
-
-      printf("\n\n %d server sent length:\n\n", CIPHER_LENGTH + length);
-      dump_buf("\n  . server sent data :--------",
-               (unsigned char *)server_use_buf, CIPHER_LENGTH + length);
-
-      write(clnt_sock, server_use_buf, CIPHER_LENGTH + length);
+      printf("\n\n %d bytes read from remote server\n\n", ret);
+      // store all buf to total_buf
+      memcpy(total_buf + total_response_len, server_use_buf, ret);
+      total_response_len += ret;
 
     } while (1);
 
     printf("\ntotally get %d bytes\n", total_response_len);
+
+    // send back to client
+    // encrypt the data of send back to client
+    unsigned char encrypt_cipher[TOTAL_BUF_SIZE] = {0};
+
+    int length = 0;
+
+    // cipher or tag may contains '00'
+    // so should not use strlen
+    encrypt_aes_gcm(KEY, total_buf, total_response_len, IV, ADD, encrypt_cipher,
+                    &length, ctx);
+
+    memset(server_use_buf, 0, TOTAL_BUF_SIZE);
+
+    // append cipher length
+    char length_buffer[CIPHER_LENGTH] = {0};
+    sprintf(length_buffer, "%d", length);
+    memcpy(server_use_buf, length_buffer, CIPHER_LENGTH);
+    dump_buf("\n  . cipher length :--------", (unsigned char *)server_use_buf,
+             CIPHER_LENGTH);
+
+    // append cipher
+    memcpy(server_use_buf + CIPHER_LENGTH, encrypt_cipher, length);
+
+    printf("\n\n %d server sent length:\n\n", CIPHER_LENGTH + length);
+    dump_buf("\n  . server sent data :--------",
+             (unsigned char *)server_use_buf, CIPHER_LENGTH + length);
+
+    write(clnt_sock, server_use_buf, CIPHER_LENGTH + length);
 
     close(request_server_fd);
     shutdown(clnt_sock, SHUT_WR);
@@ -233,8 +233,6 @@ int main() {
     mbedtls_cipher_free(ctx);
     free(ctx);
     ctx = NULL;
-    free(SERVER_NAME);
-    SERVER_NAME = NULL;
     memset(buffer, 0, BUFSIZ);
   }
 

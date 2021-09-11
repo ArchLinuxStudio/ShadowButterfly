@@ -130,7 +130,7 @@ int main() {
 
     mbedtls_printf("\n  ------ all data sent......ok.\n");
 
-    char total_buf[100000] = {0};
+    char total_buf[TOTAL_BUF_SIZE] = {0};
     int total_length = 0;
 
     do {

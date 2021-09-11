@@ -8,13 +8,11 @@ Basic version with a rough AEAD encrypt.
 
 CIPHER_LENGTH actually contain the cipher length and tag length.
 
-CIPHER_LENGTH(4 bytes string) + IV_LENGTH(64) + ADD_LENGTH(64) + CIPHER(IT DEPENDS)
+CIPHER_LENGTH(5 bytes string) + IV_LENGTH(64) + ADD_LENGTH(64) + CIPHER(IT DEPENDS)
 
 ## server send back data to client
 
-CIPHER_LENGTH(4 bytes string) + CIPHER(IT DEPENDS)
-
-CIPHER_LENGTH(4 bytes string): default BUFSIZ is 8192, so 4 bytes is enough.
+CIPHER_LENGTH(5 bytes string) + CIPHER(IT DEPENDS)
 
 ## key
 
