@@ -58,3 +58,5 @@ client:
 CIPHER, TAG, IV,ADD may contain `0x00`, so you should not use function like strcat or strlen, these function would "cut the string" prematurely when they met `0x00`, you should use functions like memcpy instead.
 
 And because of this, when you transfer data between server and client, the cipher may contain `0x00`, so you should also append the cipher length, in this way, the server or client will know how long the cipher is. IV\ADD\TAG's length is fixed, so don't need to pass their length.
+
+For socket communication, the number of send and recv is not necessarily equal. Multiple send may only receive recv once or several times, and vice versa. Therefore, when encrypting and decrypting, you should not encrypt and decrypt according to the one-to-one correspondence between send and recv, but should perform encryption and decryption after receiving all the data.

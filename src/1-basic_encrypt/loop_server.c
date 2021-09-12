@@ -80,11 +80,7 @@ int main() {
     ctx = malloc(sizeof(mbedtls_cipher_context_t));
     memset(ctx, 0, sizeof(mbedtls_cipher_context_t));
 
-    ret = init_cipher_context(ctx, MBEDTLS_CIPHER_AES_256_GCM);
-    if (ret != 0) {
-      fprintf(stderr, "init_cipher_context error! : %d \n", ret);
-      return ret;
-    }
+    init_cipher_context(ctx, MBEDTLS_CIPHER_AES_256_GCM);
 
     // accept
     int clnt_sock =
@@ -102,19 +98,12 @@ int main() {
     parse_client_request(buffer, IV, ADD, cipher, &cipher_length);
 
     // decrypt the cipher to get address
-    if (decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD,
-                        (unsigned char *)SERVER_NAME, ctx)) {
-      // auth failed
-      // terminate connection immediately
-      close(clnt_sock);
-      return 0;
-    }
+    decrypt_aes_gcm(KEY, cipher, cipher_length, IV, ADD,
+                    (unsigned char *)SERVER_NAME, ctx);
 
     int request_server_fd;
     struct sockaddr_in request_server_addr;
     struct hostent *request_server_host;
-
-    int len = 0;
 
     /*
      * start the connection
@@ -155,6 +144,7 @@ int main() {
     printf("  > Write to server: %s", SERVER_NAME);
     fflush(stdout);
 
+    int len = 0;
     // buffer to send request and accept target server response
     char server_use_buf[TOTAL_BUF_SIZE] = {0};
     len = sprintf(server_use_buf, GET_REQUEST);

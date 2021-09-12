@@ -15,19 +15,6 @@
 #include "tools.h"
 
 /**
- * \brief               This function parse the proxy server's feedback.
- *
- * \param buffer        Proxy server's send back data.
- * \param cipher        Used to store parsed ciphertext data.
- * \param cipher_length \p cipher length.
- * \param tag           Used to store parsed tag data.
- *
- * \return              \c 0 on success.
- */
-int parse_server_send_back(unsigned char *buffer, unsigned char *cipher,
-                           int *cipher_length);
-
-/**
  * \brief               This function parse the server send back data.
  *
  * \param buffer        Server's send back data.
@@ -54,36 +41,21 @@ int main() {
   mbedtls_cipher_context_t *ctx;
 
   while (1) {
-    int ret;
 
     ctx = malloc(sizeof(mbedtls_cipher_context_t));
     memset(ctx, 0, sizeof(mbedtls_cipher_context_t));
 
-    ret = init_cipher_context(ctx, MBEDTLS_CIPHER_AES_256_GCM);
-    if (ret != 0) {
-      fprintf(stderr, "init_cipher_context error! : %d \n", ret);
-      return ret;
-    }
+    init_cipher_context(ctx, MBEDTLS_CIPHER_AES_256_GCM);
 
     mbedtls_printf("\n  ------ init cipher content......ok.\n");
 
     // init IV
     unsigned char IV[IV_LENGTH] = {0};
-    ret = ctr_drbg_random(IV_LENGTH, IV);
-    if (ret != 0) {
-      fprintf(stderr, "get random error! mbedtls_ctr_drbg_random return: %d \n",
-              ret);
-      return ret;
-    }
+    ctr_drbg_random(IV_LENGTH, IV);
 
     // init ADD
     unsigned char ADD[ADD_LENGTH] = {0};
-    ret = ctr_drbg_random(ADD_LENGTH, ADD);
-    if (ret != 0) {
-      fprintf(stderr, "get random error! mbedtls_ctr_drbg_random return: %d \n",
-              ret);
-      return ret;
-    }
+    ctr_drbg_random(ADD_LENGTH, ADD);
 
     mbedtls_printf("\n  ------ init IV&ADD......ok.\n");
 
@@ -99,12 +71,12 @@ int main() {
     // trim \n
     buf_send[strlen(buf_send) - 1] = 0;
 
-    unsigned char cipher[BUFSIZ] = {0};
-    int length = 0;
+    unsigned char cipher_send[BUFSIZ] = {0};
+    int send_cipher_length = 0;
 
     // encrypt request website address
-    ret = encrypt_aes_gcm(KEY, buf_send, strlen(buf_send), IV, ADD, cipher,
-                          &length, ctx);
+    encrypt_aes_gcm(KEY, buf_send, strlen(buf_send), IV, ADD, cipher_send,
+                    &send_cipher_length, ctx);
 
     mbedtls_printf("\n  ------ encrypt user input data......ok.\n");
 
@@ -112,7 +84,7 @@ int main() {
 
     // append cipher length
     char length_buffer[CIPHER_LENGTH] = {0};
-    sprintf(length_buffer, "%d", length);
+    sprintf(length_buffer, "%d", send_cipher_length);
     memcpy(buf_send, length_buffer, CIPHER_LENGTH);
 
     // append IV and ADD
@@ -120,13 +92,14 @@ int main() {
     memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH, ADD, ADD_LENGTH);
 
     // append cipher
-    memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, cipher, length);
+    memcpy(buf_send + CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH, cipher_send,
+           send_cipher_length);
 
     mbedtls_printf("\n  ------ assemble all send data......ok.\n");
 
     // send all data to the server
-    send(serv_sock, buf_send, CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH + length,
-         0);
+    send(serv_sock, buf_send,
+         CIPHER_LENGTH + IV_LENGTH + ADD_LENGTH + send_cipher_length, 0);
 
     mbedtls_printf("\n  ------ all data sent......ok.\n");
 
@@ -160,18 +133,6 @@ int main() {
   return 0;
 }
 
-int parse_server_send_back(unsigned char *buffer, unsigned char *cipher,
-                           int *cipher_length) {
-  char length_buffer[CIPHER_LENGTH] = {0};
-  memcpy(length_buffer, buffer, CIPHER_LENGTH);
-  int len = atoi(length_buffer);
-
-  *cipher_length = len;
-  memcpy(cipher, buffer + CIPHER_LENGTH, len);
-
-  return 0;
-}
-
 int loop_parse_server_send_back(char *buffer, int total_length,
                                 unsigned char *iv, unsigned char *add,
                                 mbedtls_cipher_context_t *ctx) {
@@ -199,8 +160,8 @@ int loop_parse_server_send_back(char *buffer, int total_length,
     char *decrypt_result = malloc(sizeof(char) * len);
     memset(decrypt_result, 0, len);
 
-    ret = decrypt_aes_gcm(KEY, (unsigned char *)cipher_buffer, len, iv, add,
-                          (unsigned char *)decrypt_result, ctx);
+    decrypt_aes_gcm(KEY, (unsigned char *)cipher_buffer, len, iv, add,
+                    (unsigned char *)decrypt_result, ctx);
 
     // only print result in this sample program.
     mbedtls_printf("\n  ------ Message form server: %s\n", decrypt_result);

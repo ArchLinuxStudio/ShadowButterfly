@@ -22,15 +22,23 @@ int ctr_drbg_random(int length, unsigned char *random_num) {
   mbedtls_entropy_context entropy;
   mbedtls_ctr_drbg_context ctr_drbg;
 
-  char pers[] = "CTR_DRBG";
+  char pers[] = "SHADOWBUTTERFLY_CTR_DRBG";
 
   mbedtls_entropy_init(&entropy);
   mbedtls_ctr_drbg_init(&ctr_drbg);
 
   ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                               (const unsigned char *)pers, strlen(pers));
-
+  if (ret != 0) {
+    fprintf(stderr, "mbedtls_ctr_drbg_seed error! return: -0x%04X \n", -ret);
+    return ret;
+  }
   ret = mbedtls_ctr_drbg_random(&ctr_drbg, random_num, length);
+
+  if (ret != 0) {
+    fprintf(stderr, "mbedtls_ctr_drbg_random error! return: -0x%04X \n", -ret);
+    return ret;
+  }
 
   mbedtls_ctr_drbg_free(&ctr_drbg);
   mbedtls_entropy_free(&entropy);
@@ -89,7 +97,9 @@ int init_cipher_context(mbedtls_cipher_context_t *ctx,
   mbedtls_cipher_init(ctx);
   info = mbedtls_cipher_info_from_type(type);
   ret = mbedtls_cipher_setup(ctx, info);
-
+  if (ret != 0) {
+    printf("\n mbedtls_cipher_setup failed! -0x%04X\n", -ret);
+  }
   mbedtls_printf("cipher info setup, name: %s, block size: %d\n",
                  mbedtls_cipher_get_name(ctx),
                  mbedtls_cipher_get_block_size(ctx));
