@@ -18,9 +18,7 @@ int main() {
   struct sockaddr_in serv_addr;
   memset(&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr.s_addr =
-      inet_addr("127.0.0.1"); // change to your server ip. loopback address
-                              // cannot be used online
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
   serv_addr.sin_port = htons(6789); // change to your server port.
   int reuse = 1;
   if (setsockopt(serv_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) ==
