@@ -1,0 +1,9 @@
+// GET http://www.moe.gov.cn/jyb_sjzl/moe_164/202102/t20210203_512419.html HTTP/1.1
+// Host: www.moe.gov.cn
+// Connection: keep-alive
+
+
+// CONNECT www.google.com:443 HTTP/1.1
+// Proxy-Connection: keep-alive
+// Connection: keep-alive
+// Host: www.google.com:443
