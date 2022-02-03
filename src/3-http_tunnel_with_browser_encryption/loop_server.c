@@ -8,7 +8,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "tools.h"
+#include "tools.c"
 
 char remote_host[128];
 int remote_port;
@@ -84,7 +84,14 @@ int main() {
   socklen_t clnt_addr_size = sizeof(clnt_addr);
 
   // buffer to accept client message
-  char buffer[BUFSIZ] = {0};
+  unsigned char buffer[BUF_SIZ] = {0};
+
+  // init mbedtls
+  mbedtls_cipher_context_t *ctx;
+  ctx = malloc(sizeof(mbedtls_cipher_context_t));
+  memset(ctx, 0, sizeof(mbedtls_cipher_context_t));
+  init_cipher_context(ctx, MBEDTLS_CIPHER_AES_256_GCM);
+  mbedtls_printf("\n  ------ init cipher content......ok.\n");
 
   // main loop
   while (1) {
@@ -99,12 +106,49 @@ int main() {
 
       close(local_serv_sock);
 
-      // parse header buffer to get host
-      int k = receive_data(clnt_sock, buffer, BUFSIZ);
-      printf("get header:%s\n", buffer);
-      extract_host(buffer);
+      // 1: get and parse IV and ADD
+      unsigned char IV[IV_LENGTH] = {0};
+      unsigned char ADD[ADD_LENGTH] = {0};
+      int IV_ADD_READ = 0;
+      while (1) {
+        IV_ADD_READ = receive_data(clnt_sock, buffer + IV_ADD_READ,
+                                   IV_LENGTH + ADD_LENGTH - IV_ADD_READ);
+        if (IV_ADD_READ == IV_LENGTH + ADD_LENGTH)
+          break;
 
-      // connect with target server
+        if (IV_ADD_READ < IV_LENGTH + ADD_LENGTH) {
+          IV_ADD_READ += IV_ADD_READ;
+          continue;
+        }
+      }
+      memcpy(IV, buffer, IV_LENGTH);
+      memcpy(ADD, buffer + ADD_LENGTH, ADD_LENGTH);
+      memset(buffer, 0, BUF_SIZ);
+
+      // 2: parse header buffer to get host
+      int k = receive_data(clnt_sock, buffer, BUF_SIZ);
+
+      //解密header
+      unsigned char decrypt_result[BUF_SIZ] = {0};
+      //首先解析buffer的前5字节，获取密文长度
+      char length_buffer[CIPHER_LENGTH] = {
+          0}; //存储单次加解密过程的、密文长度的5字节长度buf
+      memcpy(length_buffer, buffer, CIPHER_LENGTH);
+      //提取单次解密数据的buf
+      unsigned char single_decrypt_buf[BUF_SIZ] = {0};
+      memcpy(single_decrypt_buf, buffer + CIPHER_LENGTH, atoi(length_buffer));
+
+      int decrypt_result_length = 0;
+
+      decrypt_aes_gcm(KEY, single_decrypt_buf, atoi(length_buffer), IV, ADD,
+                      decrypt_result, &decrypt_result_length, ctx);
+
+      printf("get header: %s\n", decrypt_result);
+      if (extract_host((const char *)decrypt_result)) {
+        continue;
+      }
+
+      // 3: connect with target server
       struct hostent *target_server;
 
       if ((target_server = gethostbyname(remote_host)) == NULL) {
@@ -117,15 +161,18 @@ int main() {
              target_server->h_length);
       int target_serv_sock = create_connect(target_server_address, remote_port);
 
+      // 4: fork
       if (fork() == 0) {
         printf("forward proxy client data to target server\n");
-        forward_data(clnt_sock, target_serv_sock);
+        forward_data_from_server_to_browser_decrypt(clnt_sock, target_serv_sock,
+                                                    IV, ADD, ctx);
         exit(0);
       }
 
       if (fork() == 0) {
         printf("forward proxy target server data to proxy client\n");
-        forward_data(target_serv_sock, clnt_sock);
+        forward_data_from_browser_to_server_encrypt(target_serv_sock, clnt_sock,
+                                                    IV, ADD, ctx);
         exit(0);
       }
 
